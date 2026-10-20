@@ -111,165 +111,164 @@ export default function StudentsPage() {
   }
 
   return (
-    <>
-      <section className="content-card">
-        <div className="section-header">
-          <div>
-            <h2>Student Management</h2>
-            <p className="muted-text">View and manage registered students.</p>
-          </div>
+    <section className="content-card">
+      <div className="section-header">
+        <div>
+          <h2>Students</h2>
+          <p className="muted-text">
+            {loading
+              ? "Loading students..."
+              : `${students.length.toLocaleString()} registered`}
+          </p>
+        </div>
+        {!showForm && (
           <button type="button" onClick={() => openForm()}>
             + Add Student
           </button>
-        </div>
-
-        <Alert message={error} />
-
-        {showForm && (
-          <form className="form-card" onSubmit={handleSubmit}>
-            <h3>{editingId !== null ? "Edit Student" : "Register New Student"}</h3>
-
-            <div className="form-grid">
-              <FormField id="studentNo" label="Student Number *">
-                <input
-                  id="studentNo"
-                  name="studentNo"
-                  value={form.studentNo}
-                  onChange={handleChange}
-                  required
-                  maxLength={30}
-                  placeholder="e.g. STU001"
-                />
-              </FormField>
-
-              <FormField id="nic" label="NIC *">
-                <input
-                  id="nic"
-                  name="nic"
-                  value={form.nic}
-                  onChange={handleChange}
-                  required
-                  maxLength={20}
-                  placeholder="National Identity Card"
-                />
-              </FormField>
-
-              <FormField id="firstName" label="First Name *">
-                <input
-                  id="firstName"
-                  name="firstName"
-                  value={form.firstName}
-                  onChange={handleChange}
-                  required
-                  maxLength={100}
-                />
-              </FormField>
-
-              <FormField id="lastName" label="Last Name *">
-                <input
-                  id="lastName"
-                  name="lastName"
-                  value={form.lastName}
-                  onChange={handleChange}
-                  required
-                  maxLength={100}
-                />
-              </FormField>
-
-              <FormField id="email" label="Email">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  maxLength={150}
-                  placeholder="student@example.com"
-                />
-              </FormField>
-
-              <FormField id="phone" label="Phone">
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={handleChange}
-                  maxLength={20}
-                />
-              </FormField>
-
-              <FormField id="dateOfBirth" label="Date of Birth">
-                <input
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  type="date"
-                  value={form.dateOfBirth}
-                  onChange={handleChange}
-                />
-              </FormField>
-
-              <FormField id="address" label="Address" full>
-                <textarea
-                  id="address"
-                  name="address"
-                  value={form.address}
-                  onChange={handleChange}
-                  rows={3}
-                  maxLength={500}
-                />
-              </FormField>
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" disabled={busy}>
-                {busy
-                  ? "Saving..."
-                  : editingId !== null
-                    ? "Update Student"
-                    : "Save Student"}
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={closeForm}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
         )}
+      </div>
 
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by name, student no. or NIC..."
-        />
+      <Alert message={error} />
 
-        <DataTable
-          title="Registered Students"
-          rows={visible}
-          loading={loading}
-          emptyText={search ? "No matching students found." : "No students found."}
-          columns={[
-            { header: "Student No.", render: (s) => s.studentNo },
-            { header: "Name", render: (s) => fullName(s) },
-            { header: "NIC", render: (s) => s.nic },
-            { header: "Email", render: (s) => s.email || "—" },
-            { header: "Phone", render: (s) => s.phone || "—" },
-            {
-              header: "Actions",
-              render: (s) => (
-                <RowActions
-                  onEdit={() => openForm(s)}
-                  onDelete={() => handleDelete(s.id)}
-                />
-              ),
-            },
-          ]}
-        />
-      </section>
-    </>
+      {showForm && (
+        <form className="form-card" onSubmit={handleSubmit}>
+          <h3>{editingId !== null ? "Edit Student" : "New Student"}</h3>
+
+          <div className="form-grid form-grid-3">
+            <FormField id="studentNo" label="Student No. *">
+              <input
+                id="studentNo"
+                name="studentNo"
+                value={form.studentNo}
+                onChange={handleChange}
+                required
+                maxLength={30}
+                placeholder="e.g. STU001"
+              />
+            </FormField>
+
+            <FormField id="firstName" label="First Name *">
+              <input
+                id="firstName"
+                name="firstName"
+                value={form.firstName}
+                onChange={handleChange}
+                required
+                maxLength={100}
+              />
+            </FormField>
+
+            <FormField id="lastName" label="Last Name *">
+              <input
+                id="lastName"
+                name="lastName"
+                value={form.lastName}
+                onChange={handleChange}
+                required
+                maxLength={100}
+              />
+            </FormField>
+
+            <FormField id="nic" label="NIC *">
+              <input
+                id="nic"
+                name="nic"
+                value={form.nic}
+                onChange={handleChange}
+                required
+                maxLength={20}
+              />
+            </FormField>
+
+            <FormField id="email" label="Email">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                maxLength={150}
+                placeholder="student@example.com"
+              />
+            </FormField>
+
+            <FormField id="phone" label="Phone">
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={form.phone}
+                onChange={handleChange}
+                maxLength={20}
+              />
+            </FormField>
+
+            <FormField id="dateOfBirth" label="Date of Birth">
+              <input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={form.dateOfBirth}
+                onChange={handleChange}
+              />
+            </FormField>
+
+            <FormField id="address" label="Address" full>
+              <textarea
+                id="address"
+                name="address"
+                value={form.address}
+                onChange={handleChange}
+                rows={2}
+                maxLength={500}
+              />
+            </FormField>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" disabled={busy}>
+              {busy ? "Saving..." : editingId !== null ? "Update" : "Save"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={closeForm}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by name, student no., NIC or email..."
+      />
+
+      <DataTable
+        title="Student List"
+        rows={visible}
+        loading={loading}
+        emptyText={search ? "No matching students found." : "No students found."}
+        columns={[
+          { header: "Student No.", render: (s) => s.studentNo },
+          { header: "Name", render: (s) => fullName(s) },
+          { header: "NIC", render: (s) => s.nic },
+          { header: "Email", render: (s) => s.email || "—" },
+          { header: "Phone", render: (s) => s.phone || "—" },
+          {
+            header: "Actions",
+            render: (s) => (
+              <RowActions
+                onEdit={() => openForm(s)}
+                onDelete={() => handleDelete(s.id)}
+              />
+            ),
+          },
+        ]}
+      />
+    </section>
   );
 }
