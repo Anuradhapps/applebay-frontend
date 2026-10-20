@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Alert from "@/components/Alert";
-import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { useFetch } from "@/hooks/useFetch";
 
@@ -28,10 +27,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description="Overview of Applebay Institute"
-      />
+     
 
       {error && (
         <section className="content-card">
@@ -42,28 +38,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <div className="stat-grid">
-        <StatCard
-          title="Total Students"
-          value={count(students.data.length)}
-          description="Registered students"
-        />
-        <StatCard
-          title="Total Courses"
-          value={count(courses.data.length)}
-          description="HND and Certificate courses"
-        />
-        <StatCard
-          title="Enrollments"
-          value={count(enrollments.data.length)}
-          description="Student course registrations"
-        />
-        <StatCard
-          title="Attendance"
-          value={count(attendance.data.length)}
-          description="Attendance records"
-        />
-      </div>
+
 
       <section className="content-card">
         <div className="section-header">
@@ -78,6 +53,28 @@ export default function DashboardPage() {
             {loading ? "Refreshing..." : "Refresh Data"}
           </button>
         </div>
+        <div className="stat-grid">
+          <StatCard
+            title="Total Students"
+            value={count(students.data.length)}
+            description="Registered students"
+          />
+          <StatCard
+            title="Total Courses"
+            value={count(courses.data.length)}
+            description="HND and Certificate courses"
+          />
+          <StatCard
+            title="Enrollments"
+            value={count(enrollments.data.length)}
+            description="Student course registrations"
+          />
+          <StatCard
+            title="Attendance"
+            value={count(attendance.data.length)}
+            description="Attendance records"
+          />
+      </div>
 
         <div className="link-grid">
           {sections.map((s) => (
