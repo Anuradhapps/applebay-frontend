@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Alert from "@/components/Alert";
 import DataTable from "@/components/DataTable";
 import FormField from "@/components/FormField";
-import StatCard from "@/components/StatCard";
 import { useAction } from "@/hooks/useAction";
 import { useFetch } from "@/hooks/useFetch";
 import { api } from "@/lib/api";
@@ -13,7 +12,7 @@ import { fullName, today } from "@/lib/utils";
 
 const STATUSES: AttendanceStatus[] = ["Present", "Absent", "Late"];
 
-const emptyFilters = { studentId: "", courseId: "", date: "", status: "" };
+const emptyFilters = { search: "", studentId: "", courseId: "", date: "", status: "" };
 
 export default function AttendancePage() {
   const records = useFetch<Attendance>("/attendance");
@@ -37,6 +36,65 @@ export default function AttendancePage() {
   const [date, setDate] = useState("");
   const [status, setStatus] = useState<AttendanceStatus>("Present");
   const [filters, setFilters] = useState(emptyFilters);
+  // Text shown in the combined student search / dropdown box.
+  const [studentText, setStudentText] = useState("");
+
+  // Attendance percentage for the student selected in the filter.
+  // Re-fetches when records change (e.g. after recording new attendance).
+  const [percentage, setPercentage] = useState<number | null>(null);
+  const [percentageLoading, setPercentageLoading] = useState(false);
+  const [percentageError, setPercentageError] = useState("");
+
+  useEffect(() => {
+    if (!filters.studentId) {
+      setPercentage(null);
+      setPercentageError("");
+      setPercentageLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPercentageLoading(true);
+
+    api
+      .get<{ studentId: number; attendancePercentage: number }>(
+        `/attendance/student/${filters.studentId}/percentage`
+      )
+      .then((res) => {
+        if (cancelled) return;
+        setPercentage(res.attendancePercentage);
+        setPercentageError("");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPercentage(null);
+        setPercentageError("Unable to load attendance percentage.");
+      })
+      .finally(() => {
+        if (!cancelled) setPercentageLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.studentId, records.data]);
+
+  const percentageLevel =
+    percentage === null
+      ? ""
+      : percentage >= 85
+      ? "good"
+      : percentage >= 75
+      ? "warn"
+      : "low";
+
+  const percentageValue = !filters.studentId
+    ? "Select a student"
+    : percentageError
+    ? "—"
+    : percentageLoading || percentage === null
+    ? "Loading..."
+    : `${percentage.toFixed(1)}%`;
 
   // Look up an enrollment by id once, instead of searching the array per row.
   const enrollmentById = useMemo(
@@ -64,7 +122,13 @@ export default function AttendancePage() {
         const e = r.enrollment;
         const sid = e?.student?.id ?? e?.studentId;
         const cid = e?.course?.id ?? e?.courseId;
+        const q = filters.search.trim().toLowerCase();
+        const matchesSearch =
+          !q ||
+          String(fullName(e?.student)).toLowerCase().includes(q) ||
+          String(e?.student?.studentNo ?? "").toLowerCase().includes(q);
         return (
+          matchesSearch &&
           (!filters.studentId || String(sid) === filters.studentId) &&
           (!filters.courseId || String(cid) === filters.courseId) &&
           (!filters.date || r.attendanceDate === filters.date) &&
@@ -79,6 +143,26 @@ export default function AttendancePage() {
 
   function setFilter(key: keyof typeof emptyFilters, value: string) {
     setFilters((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const studentLabel = (s: Student) => `${s.studentNo} — ${fullName(s)}`;
+
+  // One box for both searching and picking a student:
+  // - typing filters the suggestion list and the table (by name / number)
+  // - choosing a suggestion selects that student (enables the attendance %)
+  function handleStudentInput(value: string) {
+    setStudentText(value);
+    const match = students.data.find((s) => studentLabel(s) === value);
+    setFilters((prev) => ({
+      ...prev,
+      studentId: match ? String(match.id) : "",
+      search: match ? "" : value,
+    }));
+  }
+
+  function clearFilters() {
+    setFilters(emptyFilters);
+    setStudentText("");
   }
 
   function toggleForm() {
@@ -124,7 +208,7 @@ export default function AttendancePage() {
 
   return (
     <>
-      <section className="content-card">
+      <section className="content-card attendance-compact">
         <div className="section-header">
           <div>
             <h2>Attendance Management</h2>
@@ -209,27 +293,22 @@ export default function AttendancePage() {
           </form>
         )}
 
-        <div className="stat-grid stat-grid-4">
-          <StatCard title="Total Records" value={visible.length} />
-          <StatCard title="Present" value={countStatus("Present")} />
-          <StatCard title="Absent" value={countStatus("Absent")} />
-          <StatCard title="Late" value={countStatus("Late")} />
-        </div>
-
         <div className="filters">
           <FormField id="filterStudent" label="Student">
-            <select
+            <input
               id="filterStudent"
-              value={filters.studentId}
-              onChange={(e) => setFilter("studentId", e.target.value)}
-            >
-              <option value="">All students</option>
+              type="text"
+              list="studentOptions"
+              placeholder="Type name or number, or pick..."
+              autoComplete="off"
+              value={studentText}
+              onChange={(e) => handleStudentInput(e.target.value)}
+            />
+            <datalist id="studentOptions">
               {students.data.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.studentNo} — {fullName(s)}
-                </option>
+                <option key={s.id} value={studentLabel(s)} />
               ))}
-            </select>
+            </datalist>
           </FormField>
 
           <FormField id="filterCourse" label="Course">
@@ -274,11 +353,50 @@ export default function AttendancePage() {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => setFilters(emptyFilters)}
+            onClick={clearFilters}
           >
-            Clear Filters
+            Clear
           </button>
         </div>
+
+        <div className="stat-strip">
+          <div className="stat-chip">
+            <span>Total</span>
+            <strong>{visible.length}</strong>
+          </div>
+          <div className="stat-chip present">
+            <span>Present</span>
+            <strong>{countStatus("Present")}</strong>
+          </div>
+          <div className="stat-chip absent">
+            <span>Absent</span>
+            <strong>{countStatus("Absent")}</strong>
+          </div>
+          <div className="stat-chip late">
+            <span>Late</span>
+            <strong>{countStatus("Late")}</strong>
+          </div>
+          <div className="stat-chip attendance">
+            <span>Attendance %</span>
+            <strong>{percentageValue}</strong>
+            {filters.studentId && percentage !== null && !percentageError && (
+              <div
+                className="attendance-meter"
+                role="progressbar"
+                aria-label="Attendance percentage"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(percentage)}
+              >
+                <div
+                  className={`attendance-meter-fill ${percentageLevel}`}
+                  style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <Alert message={percentageError} />
 
         <DataTable
           title="Attendance Records"

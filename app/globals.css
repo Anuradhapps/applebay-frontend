@@ -168,7 +168,7 @@ body {
 
 .dash-stats .stat-card {
   position: relative;
-  padding: 14px 16px 14px 18px;
+  padding: 10px 12px 14px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -305,7 +305,7 @@ body {
 
 /* ---------- Cards ---------- */
 .stat-card {
-  padding: 14px 16px;
+  padding: 10px 12px;
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -416,12 +416,13 @@ body {
 
 /* ---------- Buttons ---------- */
 button {
-  padding: 11px 16px;
+  padding: 7px 8px;
   background: var(--primary);
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size:12px;
 }
 
 button:hover {
@@ -557,7 +558,7 @@ textarea:focus {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   gap: 16px;
   margin: 24px 0;
@@ -596,7 +597,7 @@ textarea:focus {
 
 .data-table th,
 .data-table td {
-  padding: 10px 12px;
+  padding: 2px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -765,4 +766,116 @@ textarea:focus {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ---------- Compact attendance page ---------- */
+
+.attendance-compact {
+  padding: 0.9rem 1rem;
+}
+
+.attendance-compact .section-header {
+  margin-bottom: 0.5rem;
+}
+.attendance-compact .section-header h2 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+.attendance-compact .section-header p {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+}
+
+/* record form */
+.attendance-compact .form-card {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.6rem;
+}
+.attendance-compact .form-card h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+/* search + filters in one wrapping row */
+.attendance-compact .filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.6rem;
+  margin: 0.4rem 0 0.6rem;
+}
+.attendance-compact .filters label {
+  font-size: 0.75rem;
+}
+.attendance-compact .filters select,
+.attendance-compact .filters input {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  min-width: 140px;
+}
+.attendance-compact .filters input[list] {
+  min-width: 260px;
+}
+.attendance-compact .filters button {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* one-line stats strip */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+@media (max-width: 900px) {
+  .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.stat-chip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #e5e7eb;
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.8rem;
+}
+.stat-chip span { color: #6b7280; }
+.stat-chip strong { font-size: 1rem; }
+.stat-chip.present { border-left-color: #16a34a; }
+.stat-chip.absent  { border-left-color: #dc2626; }
+.stat-chip.late    { border-left-color: #f59e0b; }
+.stat-chip.attendance {
+  border-left-color: #2563eb;
+}
+
+/* attendance % bar, inside the chip */
+.attendance-meter {
+  flex-basis: 100%;
+  height: 5px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.attendance-meter-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+.attendance-meter-fill.good { background: #16a34a; }
+.attendance-meter-fill.warn { background: #f59e0b; }
+.attendance-meter-fill.low  { background: #dc2626; }
+
+/* table */
+.attendance-compact table th,
+.attendance-compact table td {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
 }
