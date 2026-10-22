@@ -22,6 +22,7 @@ export default function EnrollmentsPage() {
   const loadError = enrollments.error || students.error || courses.error;
 
   const [actionError, setActionError] = useState("");
+  const [success, setSuccess] = useState("");
   const { run, busy } = useAction(setActionError);
 
   const [showForm, setShowForm] = useState(false);
@@ -50,6 +51,12 @@ export default function EnrollmentsPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    const student = students.data.find((s) => String(s.id) === studentId);
+    const course = courses.data.find((c) => String(c.id) === courseId);
+    const studentLabel = student ? fullName(student) : "Student";
+    const courseLabel = course?.code ?? "the course";
+
+    setSuccess("");
     const ok = await run(
       () =>
         api.post("/enrollments", {
@@ -62,17 +69,30 @@ export default function EnrollmentsPage() {
     if (ok) {
       closeForm();
       await enrollments.reload();
+      setSuccess(
+        `Enrollment created: "${studentLabel}" was enrolled in "${courseLabel}".`
+      );
     }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Are you sure you want to delete this enrollment?")) return;
 
+    const target = enrollments.data.find((e) => e.id === id);
+    const studentLabel = target?.student ? fullName(target.student) : "Student";
+    const courseLabel = target?.course?.code ?? "the course";
+
+    setSuccess("");
     const ok = await run(
       () => api.delete(`/enrollments/${id}`),
       "Failed to delete enrollment."
     );
-    if (ok) await enrollments.reload();
+    if (ok) {
+      await enrollments.reload();
+      setSuccess(
+        `Enrollment deleted: "${studentLabel}" was removed from "${courseLabel}".`
+      );
+    }
   }
 
   return (
@@ -89,6 +109,7 @@ export default function EnrollmentsPage() {
             type="button"
             onClick={() => {
               setActionError("");
+              setSuccess("");
               setShowForm(true);
             }}
           >
@@ -97,6 +118,12 @@ export default function EnrollmentsPage() {
         </div>
 
         <Alert message={loadError || actionError} />
+        <Alert
+          message={success}
+          type="success"
+          onClose={() => setSuccess("")}
+          autoHideMs={4000}
+        />
 
         {showForm && (
           <form className="form-card" onSubmit={handleSubmit}>

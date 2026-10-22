@@ -26,14 +26,14 @@ const emptyForm = {
 type StudentForm = typeof emptyForm;
 
 export default function StudentsPage() {
-  const { data: students, loading, error, setError, reload } =
-    useFetch<Student>("/students");
+  const { data: students, loading, error, setError, reload } = useFetch<Student>("/students");
   const { run, busy } = useAction(setError);
 
   const [form, setForm] = useState<StudentForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const [success, setSuccess] = useState("");
 
   const visible = students.filter((s) =>
     matches(search, s.studentNo, s.firstName, s.lastName, s.nic, s.email)
@@ -47,6 +47,7 @@ export default function StudentsPage() {
 
   function openForm(student?: Student) {
     setError("");
+    setSuccess("");
     setEditingId(student?.id ?? null);
     setForm(
       student
@@ -86,9 +87,13 @@ export default function StudentsPage() {
       dateOfBirth: emptyToNull(form.dateOfBirth),
     };
 
+    const isEditing = editingId !== null;
+    const studentName = `${payload.firstName} ${payload.lastName}`;
+
+    setSuccess("");
     const ok = await run(
       () =>
-        editingId !== null
+        isEditing
           ? api.put(`/students/${editingId}`, payload)
           : api.post("/students", payload),
       "Failed to save student."
@@ -97,24 +102,36 @@ export default function StudentsPage() {
     if (ok) {
       closeForm();
       await reload();
+      setSuccess(
+        isEditing
+          ? `Student "${studentName}" was updated successfully.`
+          : `Student "${studentName}" was created successfully.`
+      );
     }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Are you sure you want to delete this student?")) return;
 
+    const target = students.find((s) => s.id === id);
+    const studentName = target ? fullName(target) : "Student";
+
+    setSuccess("");
     const ok = await run(
       () => api.delete(`/students/${id}`),
       "Failed to delete student."
     );
-    if (ok) await reload();
+    if (ok) {
+      await reload();
+      setSuccess(`Student "${studentName}" was deleted successfully.`);
+    }
   }
 
   return (
     <section className="content-card">
       <div className="section-header">
         <div>
-          <h2>Students</h2>
+          <h2>Students Management</h2>
           <p className="muted-text">
             {loading
               ? "Loading students..."
@@ -129,6 +146,12 @@ export default function StudentsPage() {
       </div>
 
       <Alert message={error} />
+      <Alert
+        message={success}
+        type="success"
+        onClose={() => setSuccess("")}
+        autoHideMs={4000}
+      />
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>
@@ -180,13 +203,14 @@ export default function StudentsPage() {
               />
             </FormField>
 
-            <FormField id="email" label="Email">
+            <FormField id="email" label="Email *">
               <input
                 id="email"
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
+                required
                 maxLength={150}
                 placeholder="student@example.com"
               />

@@ -25,6 +25,7 @@ export default function CoursesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const [success, setSuccess] = useState("");
 
   const visible = courses.filter((c) => matches(search, c.code, c.name, c.level));
   const countLevel = (level: string) =>
@@ -38,6 +39,7 @@ export default function CoursesPage() {
 
   function openForm(course?: Course) {
     setError("");
+    setSuccess("");
     setEditingId(course?.id ?? null);
     setForm(
       course
@@ -69,9 +71,12 @@ export default function CoursesPage() {
       durationMonths: Number(form.durationMonths),
     };
 
+    const isEditing = editingId !== null;
+
+    setSuccess("");
     const ok = await run(
       () =>
-        editingId !== null
+        isEditing
           ? api.put(`/courses/${editingId}`, payload)
           : api.post("/courses", payload),
       "Failed to save course."
@@ -80,17 +85,28 @@ export default function CoursesPage() {
     if (ok) {
       closeForm();
       await reload();
+      setSuccess(
+        isEditing
+          ? `Course "${payload.code}" was updated successfully.`
+          : `Course "${payload.code}" was created successfully.`
+      );
     }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Are you sure you want to delete this course?")) return;
 
+    const courseCode = courses.find((c) => c.id === id)?.code ?? "Course";
+
+    setSuccess("");
     const ok = await run(
       () => api.delete(`/courses/${id}`),
       "Failed to delete course."
     );
-    if (ok) await reload();
+    if (ok) {
+      await reload();
+      setSuccess(`Course "${courseCode}" was deleted successfully.`);
+    }
   }
 
   return (
@@ -109,6 +125,12 @@ export default function CoursesPage() {
         </div>
 
         <Alert message={error} />
+        <Alert
+          message={success}
+          type="success"
+          onClose={() => setSuccess("")}
+          autoHideMs={4000}
+        />
 
         {showForm && (
           <form className="form-card" onSubmit={handleSubmit}>
