@@ -879,3 +879,58 @@ textarea:focus {
   padding: 0.35rem 0.6rem;
   font-size: 0.85rem;
 }
+
+/* ---------- Record attendance: mark each student ---------- */
+
+.mark-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0;
+}
+.mark-summary { font-size: 0.85rem; }
+.mark-summary b.present { color: #16a34a; }
+.mark-summary b.absent  { color: #dc2626; }
+.mark-summary b.late    { color: #d97706; }
+.mark-quick { display: flex; gap: 0.4rem; }
+.mark-quick button { padding: 0.25rem 0.7rem; font-size: 0.8rem; }
+
+/* scrolls when a course has many students, header stays visible */
+.mark-list {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 0.6rem;
+}
+.mark-list th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 1;
+}
+
+.mark-group {
+  display: inline-flex;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mark-btn {
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  background: #fff;
+  color: #374151;
+  border: 0;
+  border-right: 1px solid #d1d5db;
+  border-radius: 0;
+  cursor: pointer;
+}
+.mark-btn:last-child { border-right: 0; }
+.mark-btn:hover { background: #f3f4f6; }
+.mark-btn.active { color: #fff; font-weight: 600; }
+.mark-btn.mark-present.active { background: #16a34a; }
+.mark-btn.mark-absent.active  { background: #dc2626; }
+.mark-btn.mark-late.active    { background: #f59e0b; }

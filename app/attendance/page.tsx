@@ -29,12 +29,15 @@ export default function AttendancePage() {
   const [success, setSuccess] = useState("");
   const { run, busy } = useAction(setActionError);
 
+  // ---- Record attendance form (course -> students -> mark -> save all) ----
   const [showForm, setShowForm] = useState(false);
-  const [enrollmentId, setEnrollmentId] = useState("");
+  const [formCourseId, setFormCourseId] = useState("");
   // Left empty on first render; today's date is set when the form opens
   // (an event handler), because new Date() can't run during prerender.
   const [date, setDate] = useState("");
-  const [status, setStatus] = useState<AttendanceStatus>("Present");
+  // Only students whose status was changed are stored; everyone else is "Present".
+  const [marks, setMarks] = useState<Record<number, AttendanceStatus>>({});
+
   const [filters, setFilters] = useState(emptyFilters);
   // Text shown in the combined student search / dropdown box.
   const [studentText, setStudentText] = useState("");
@@ -141,6 +144,49 @@ export default function AttendancePage() {
   const countStatus = (s: AttendanceStatus) =>
     visible.filter((r) => r.status === s).length;
 
+  // ---- Record form data ----
+
+  // Students enrolled in the course chosen in the form, ordered by student number.
+  const courseEnrollments = useMemo(
+    () =>
+      formCourseId
+        ? enrollments.data
+            .filter((en) => String(en.course?.id ?? en.courseId) === formCourseId)
+            .slice()
+            .sort((a, b) =>
+              String(a.student?.studentNo ?? "").localeCompare(
+                String(b.student?.studentNo ?? "")
+              )
+            )
+        : [],
+    [enrollments.data, formCourseId]
+  );
+
+  // Enrollments that already have attendance on the chosen date (id -> status).
+  const recordedStatus = useMemo(() => {
+    const map = new Map<number, AttendanceStatus>();
+    if (!date) return map;
+    records.data.forEach((r) => {
+      const id = r.enrollmentId ?? r.enrollment?.id;
+      if (id !== undefined && r.attendanceDate === date) map.set(id, r.status);
+    });
+    return map;
+  }, [records.data, date]);
+
+  // Students still waiting to be marked for this course + date.
+  const pending = useMemo(
+    () => courseEnrollments.filter((en) => !recordedStatus.has(en.id)),
+    [courseEnrollments, recordedStatus]
+  );
+
+  const statusOf = (id: number): AttendanceStatus => marks[id] ?? "Present";
+  const pendingCount = (s: AttendanceStatus) =>
+    pending.filter((en) => statusOf(en.id) === s).length;
+
+  function setAll(s: AttendanceStatus) {
+    setMarks(Object.fromEntries(pending.map((en) => [en.id, s])));
+  }
+
   function setFilter(key: keyof typeof emptyFilters, value: string) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
@@ -168,41 +214,44 @@ export default function AttendancePage() {
   function toggleForm() {
     setActionError("");
     setSuccess("");
-    if (!showForm) setDate(today());
+    if (!showForm) {
+      setDate(today());
+      setFormCourseId("");
+      setMarks({});
+    }
     setShowForm((open) => !open);
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Saves every unmarked student of the course for the chosen date in one go.
+  async function handleSaveAll(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSuccess("");
+    if (!formCourseId || !date || pending.length === 0) return;
 
-    const duplicate = records.data.some(
-      (r) =>
-        (r.enrollmentId ?? r.enrollment?.id) === Number(enrollmentId) &&
-        r.attendanceDate === date
-    );
-    if (duplicate) {
-      setActionError("Attendance for this enrollment is already recorded on that date.");
-      return;
-    }
+    const payload = pending.map((en) => ({
+      enrollmentId: en.id,
+      attendanceDate: date,
+      status: statusOf(en.id),
+    }));
 
-    const ok = await run(
-      () =>
-        api.post("/attendance", {
-          enrollmentId: Number(enrollmentId),
-          attendanceDate: date,
-          status,
-        }),
-      "Unable to record attendance."
-    );
+    const ok = await run(async () => {
+      const results = await Promise.allSettled(
+        payload.map((p) => api.post("/attendance", p))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        throw new Error(
+          `${failed} of ${payload.length} records could not be saved. Press Save again to retry the missing ones.`
+        );
+      }
+    }, "Unable to record attendance.");
+
+    // Reload even after a partial failure so saved students show as recorded.
+    await records.reload();
 
     if (ok) {
-      setSuccess("Attendance recorded successfully.");
-      setEnrollmentId("");
-      setDate("");
-      setStatus("Present");
-      setShowForm(false);
-      await records.reload();
+      setSuccess(`Attendance saved for ${payload.length} student(s).`);
+      setMarks({});
     }
   }
 
@@ -225,21 +274,24 @@ export default function AttendancePage() {
         <Alert type="success" message={success} />
 
         {showForm && (
-          <form className="form-card" onSubmit={handleSubmit}>
-            <h3>Record Student Attendance</h3>
+          <form className="form-card" onSubmit={handleSaveAll}>
+            <h3>Record Attendance</h3>
 
             <div className="form-grid form-grid-3">
-              <FormField id="enrollmentId" label="Student Enrollment">
+              <FormField id="formCourse" label="Course">
                 <select
-                  id="enrollmentId"
-                  value={enrollmentId}
-                  onChange={(e) => setEnrollmentId(e.target.value)}
+                  id="formCourse"
+                  value={formCourseId}
+                  onChange={(e) => {
+                    setFormCourseId(e.target.value);
+                    setMarks({});
+                  }}
                   required
                 >
-                  <option value="">Select an enrollment</option>
-                  {enrollments.data.map((en) => (
-                    <option key={en.id} value={en.id}>
-                      {fullName(en.student)} — {en.course?.code ?? "Course unavailable"}
+                  <option value="">Select a course</option>
+                  {courses.data.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.name}
                     </option>
                   ))}
                 </select>
@@ -250,24 +302,12 @@ export default function AttendancePage() {
                   id="attendanceDate"
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    setMarks({});
+                  }}
                   required
                 />
-              </FormField>
-
-              <FormField id="status" label="Attendance Status">
-                <select
-                  id="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as AttendanceStatus)}
-                  required
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
               </FormField>
             </div>
 
@@ -277,9 +317,106 @@ export default function AttendancePage() {
               </p>
             )}
 
+            {formCourseId && courseEnrollments.length === 0 && !loading && (
+              <p className="muted-text">No students are enrolled in this course.</p>
+            )}
+
+            {formCourseId && courseEnrollments.length > 0 && (
+              <>
+                <div className="mark-toolbar">
+                  <span className="muted-text">
+                    {courseEnrollments.length} enrolled
+                    {recordedStatus.size > 0 &&
+                      ` · ${courseEnrollments.length - pending.length} already recorded`}
+                  </span>
+                  <span className="mark-summary">
+                    <b className="present">{pendingCount("Present")}</b> Present ·{" "}
+                    <b className="absent">{pendingCount("Absent")}</b> Absent ·{" "}
+                    <b className="late">{pendingCount("Late")}</b> Late
+                  </span>
+                  <div className="mark-quick">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setAll("Present")}
+                      disabled={pending.length === 0}
+                    >
+                      All Present
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setAll("Absent")}
+                      disabled={pending.length === 0}
+                    >
+                      All Absent
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mark-list">
+                  <DataTable
+                    title="Students"
+                    rows={courseEnrollments}
+                    loading={loading}
+                    emptyText="No students found."
+                    columns={[
+                      { header: "Student No.", render: (en) => en.student?.studentNo ?? "—" },
+                      { header: "Student", render: (en) => fullName(en.student) },
+                      {
+                        header: "Attendance",
+                        render: (en) => {
+                          const saved = recordedStatus.get(en.id);
+                          if (saved) {
+                            return (
+                              <span className={`badge badge-${saved.toLowerCase()}`}>
+                                {saved} · recorded
+                              </span>
+                            );
+                          }
+                          const current = statusOf(en.id);
+                          return (
+                            <div
+                              className="mark-group"
+                              role="radiogroup"
+                              aria-label={`Attendance for ${fullName(en.student)}`}
+                            >
+                              {STATUSES.map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={current === s}
+                                  className={`mark-btn mark-${s.toLowerCase()}${
+                                    current === s ? " active" : ""
+                                  }`}
+                                  onClick={() =>
+                                    setMarks((prev) => ({ ...prev, [en.id]: s }))
+                                  }
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        },
+                      },
+                    ]}
+                  />
+                </div>
+
+                {pending.length === 0 && (
+                  <p className="muted-text">
+                    Attendance for every student in this course is already recorded on this
+                    date.
+                  </p>
+                )}
+              </>
+            )}
+
             <div className="form-actions">
-              <button type="submit" disabled={busy || enrollments.data.length === 0}>
-                {busy ? "Saving..." : "Save Attendance"}
+              <button type="submit" disabled={busy || !date || pending.length === 0}>
+                {busy ? "Saving..." : `Save Attendance (${pending.length})`}
               </button>
               <button
                 type="button"
@@ -350,11 +487,7 @@ export default function AttendancePage() {
             </select>
           </FormField>
 
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={clearFilters}
-          >
+          <button type="button" className="btn-secondary" onClick={clearFilters}>
             Clear
           </button>
         </div>
